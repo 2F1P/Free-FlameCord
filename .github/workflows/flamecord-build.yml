@@ -40,8 +40,6 @@ jobs:
       run: |
         git config --global user.email "you@example.com"
         git config --global user.name "Your Name"
-        git submodule update
-        git reset --hard 04360ecae4ff25fc287814162dfbd6c781a31e57
         scripts/build.sh --jar
       
     # An artifact is generated in a compressed file according to each JDK build version.
