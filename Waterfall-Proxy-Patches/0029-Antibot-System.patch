@@ -1,4 +1,4 @@
-From 2e5c61bc9884a58f740118c369aba5f00d4d739f Mon Sep 17 00:00:00 2001
+From c8088b0ac08cde56846bb6aa11a841c2f6c99a91 Mon Sep 17 00:00:00 2001
 From: LinsaFTW <25271111+linsaftw@users.noreply.github.com>
 Date: Fri, 4 Mar 2022 13:35:53 -0300
 Subject: [PATCH] Antibot System
@@ -129,7 +129,7 @@ index 000000000..5e7fa6bfb
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressData.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressData.java
 new file mode 100644
-index 000000000..c3ccae2b6
+index 000000000..a4e754f7e
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressData.java
 @@ -0,0 +1,162 @@
@@ -146,7 +146,7 @@ index 000000000..c3ccae2b6
 +    private StatsData statsData;
 +    private Collection<String> nicknames = null;
 +    private final String hostString;
-+    private String lastNickname = null;
++    private String lastNickname = "";
 +    private String country = null;
 +    private String firewallReason = null;
 +    private long lastPing = 0;
@@ -177,7 +177,7 @@ index 000000000..c3ccae2b6
 +    public void addNickname(final String nickname) {
 +        if (nicknames == null) nicknames = new HashSet<>();
 +
-+        if (lastNickname == null || !lastNickname.equals(nickname)) {
++        if (!lastNickname.equals(nickname)) {
 +            this.lastNickname = nickname;
 +            this.totalConnections = 1;
 +        }
@@ -297,10 +297,10 @@ index 000000000..c3ccae2b6
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressDataManager.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressDataManager.java
 new file mode 100644
-index 000000000..9f74116b3
+index 000000000..bd14f56a1
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/AddressDataManager.java
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,48 @@
 +package dev._2lstudios.flamecord.antibot;
 +
 +import java.net.InetSocketAddress;
@@ -309,10 +309,23 @@ index 000000000..9f74116b3
 +import java.util.Map;
 +
 +public class AddressDataManager {
-+    private final Map<String, AddressData> addressData = new HashMap<>();
++    private Map<String, AddressData> addressData = new HashMap<>();
++
++    public String sanitizeAddress(String text) {
++        // Remove the port
++        text = text.split(":")[0];
++
++        // Check if first character is a slash
++        if (text.startsWith("/")) {
++            // Remove the first character
++            text = text.substring(1);
++        }
++
++        return text;
++    }
 +
 +    public AddressData getAddressData(String addressString) {
-+        addressString = addressString.split(":")[0];
++        addressString = sanitizeAddress(addressString);
 +
 +        if (addressData.containsKey(addressString)) {
 +            return addressData.get(addressString);
@@ -320,7 +333,7 @@ index 000000000..9f74116b3
 +            AddressData data = new AddressData(addressString);
 +
 +            addressData.put(addressString, data);
-+    
++
 +            return data;
 +        }
 +    }
@@ -328,7 +341,7 @@ index 000000000..9f74116b3
 +    public AddressData getAddressData(final SocketAddress address) {
 +        final InetSocketAddress iNetSocketAddress = (InetSocketAddress) address;
 +        final String addressString = iNetSocketAddress.getHostString();
-+        
++
 +        return getAddressData(addressString);
 +    }
 +
@@ -568,7 +581,7 @@ index 000000000..682e1c314
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/LoggerWrapper.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/LoggerWrapper.java
 new file mode 100644
-index 000000000..bbd84ce5c
+index 000000000..df26a3634
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/LoggerWrapper.java
 @@ -0,0 +1,28 @@
@@ -591,7 +604,7 @@ index 000000000..bbd84ce5c
 +        long currentTime = System.currentTimeMillis();
 +
 +        // Throttle logs by 100ms
-+        if (lastLog - currentTime > 100) {
++        if (currentTime - lastLog > 100) {
 +            // Set the last log
 +            lastLog = currentTime;
 +
@@ -653,10 +666,10 @@ index 000000000..165963629
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/PacketsCheck.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/PacketsCheck.java
 new file mode 100644
-index 000000000..199da2920
+index 000000000..a7bd9f153
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/PacketsCheck.java
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,69 @@
 +package dev._2lstudios.flamecord.antibot;
 +
 +import java.net.SocketAddress;
@@ -672,20 +685,22 @@ index 000000000..199da2920
 +
 +public class PacketsCheck {
 +    private Map<String, PacketsData> packetsData = new HashMap<>();
-+    private long lastCalculation = System.currentTimeMillis();
++
++    // Time since the last clear passed
++    private long lastClear = System.currentTimeMillis();
 +
 +    public PacketsData getData(SocketAddress address) {
 +        String ip = address.toString();
 +
-+        if (System.currentTimeMillis() - lastCalculation >= 60000) {
++        if (System.currentTimeMillis() - lastClear >= 60000) {
 +            packetsData.clear();
-+            this.lastCalculation = System.currentTimeMillis();
++            this.lastClear = System.currentTimeMillis();
 +        }
 +
 +        PacketsData data;
 +
 +        if (packetsData.containsKey(ip)) {
-+           data = packetsData.get(ip);
++            data = packetsData.get(ip);
 +        } else {
 +            data = new PacketsData(address);
 +            packetsData.put(ip, data);
@@ -695,17 +710,22 @@ index 000000000..199da2920
 +    }
 +
 +    public PacketsCheckResult check(SocketAddress socketAddress, ByteBuf byteBuf) {
-+        PacketsData addressData = getData(socketAddress);
 +        FlameCordConfiguration config = FlameCord.getInstance().getFlameCordConfiguration();
++
++        if (!config.isAntibotPacketsEnabled()) {
++            return PacketsCheckResult.NONE;
++        }
++
++        PacketsData packetsData = getData(socketAddress);
 +        int length = byteBuf.readableBytes();
 +        int index = byteBuf.readerIndex();
 +        int packetId = ProtocolUtil.readVarInt(byteBuf);
 +        byteBuf.readerIndex(index);
 +
-+        addressData.addVls(length * config.getAntibotPacketsVlsPerByte(), PacketsViolationReason.SIZE, packetId);
-+        addressData.addVls(config.getAntibotPacketsVlsPerPacket(), PacketsViolationReason.RATE, packetId);
++        packetsData.addVls(length * config.getAntibotPacketsVlsPerByte(), PacketsViolationReason.SIZE, packetId);
++        packetsData.addVls(config.getAntibotPacketsVlsPerPacket(), PacketsViolationReason.RATE, packetId);
 +
-+        double vls = addressData.getPacketsVls();
++        double vls = packetsData.getPacketsVls();
 +
 +        if (vls >= config.getAntibotPacketsVlsToKick()) {
 +            return PacketsCheckResult.KICK;
@@ -1001,10 +1021,10 @@ index 000000000..68cc4c217
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/StatsData.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/StatsData.java
 new file mode 100644
-index 000000000..28bfc2c37
+index 000000000..44d773abe
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/antibot/StatsData.java
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,75 @@
 +package dev._2lstudios.flamecord.antibot;
 +
 +public class StatsData {
@@ -1028,7 +1048,7 @@ index 000000000..28bfc2c37
 +        long currentTime = System.currentTimeMillis();
 +
 +        // Check if one second passed
-+        if (lastSecond - currentTime > 1000) {
++        if (currentTime - lastSecond > 1000) {
 +            // Set the last second to this one
 +            lastSecond = currentTime;
 +
@@ -1041,11 +1061,13 @@ index 000000000..28bfc2c37
 +    }
 +
 +    public void addPing() {
++        resetData();
 +        currentPings++;
 +        totalPings++;
 +    }
 +
 +    public void addConnection() {
++        resetData();
 +        currentConnections++;
 +        totalConnections++;
 +    }
@@ -1415,19 +1437,18 @@ index c0d371426..403ccba98 100644
  
      @Override
 diff --git a/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java b/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
-index cc76325b2..d513d35bd 100644
+index cc76325b2..05cf5b953 100644
 --- a/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
 +++ b/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
-@@ -4,6 +4,8 @@ import java.util.Collection;
+@@ -4,6 +4,7 @@ import java.util.Collection;
  import java.util.HashSet;
  
  import dev._2lstudios.flamecord.FlameCord;
-+import dev._2lstudios.flamecord.antibot.AddressDataManager;
 +import dev._2lstudios.flamecord.antibot.StatsData;
  import dev._2lstudios.flamecord.configuration.MessagesConfiguration;
  import net.md_5.bungee.BungeeCord;
  import net.md_5.bungee.api.CommandSender;
-@@ -27,9 +29,7 @@ private final BungeeCord bungeeCord;
+@@ -27,9 +28,7 @@ private final BungeeCord bungeeCord;
  
          if (sender.hasPermission("flamecord.usage")) {
              if (args.length > 0) {
@@ -1438,7 +1459,7 @@ index cc76325b2..d513d35bd 100644
                      case "reload": {
                          // FlameCord - Collect ips from servers
                          final Collection<String> whitelistedAddresses = new HashSet<>();
-@@ -43,9 +43,45 @@ private final BungeeCord bungeeCord;
+@@ -43,9 +42,44 @@ private final BungeeCord bungeeCord;
                                  .fromLegacyText(messagesConfiguration.getTranslation("flamecord_reload")));
                          break;
                      }
@@ -1446,16 +1467,15 @@ index cc76325b2..d513d35bd 100644
 +                        StatsData statsData = FlameCord.getInstance().getStatsData();
 +                        int totalPings = statsData.getTotalPings();
 +                        int totalConnections = statsData.getTotalConnections();
-+                        int currentPings = statsData.getLastPings();
-+                        int currentConnections = statsData.getLastConnections();
-+                        int addressCount = FlameCord.getInstance().getAddressDataManager().getAddresCount();
-+
-+                        sender.sendMessage(TextComponent.fromLegacyText(messagesConfiguration.getTranslation("antibot_stats", totalPings, totalConnections, currentPings, currentConnections, addressCount)));
++                        int lastPings = statsData.getLastPings();
++                        int lastConnections = statsData.getLastConnections();
++                        
++                        sender.sendMessage(TextComponent.fromLegacyText(messagesConfiguration.getTranslation("antibot_stats", totalPings, totalConnections, lastPings, lastConnections)));
 +                        break;
 +                    }
 +                    case "firewall": {
 +                        if (args.length > 2) {
-+                            String ip = "/" + args[2];
++                            String ip = args[2];
 +                            
 +                            switch (args[1]) {
 +                                case "add": {
@@ -1487,7 +1507,7 @@ index cc76325b2..d513d35bd 100644
                      }
                  }
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
-index c00ab4b6a..bbf9c3dba 100644
+index c00ab4b6a..86021b71b 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 @@ -22,7 +22,8 @@ import javax.crypto.SecretKey;
@@ -1524,7 +1544,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +                {
 +                    if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotRatelimitLog() )
 +                    {
-+                        bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] is pinging too fast", ch.getRemoteAddress() );
++                        FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] is pinging too fast", ch.getRemoteAddress() );
 +                    }
 +
 +                    disconnect( bungee.getTranslation( "antibot_ratelimit", addressData.getPingsSecond() ) );
@@ -1546,7 +1566,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +                {
 +                    if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotRatelimitLog() )
 +                    {
-+                        bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] is connecting too fast", ch.getRemoteAddress() );
++                        FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] is connecting too fast", ch.getRemoteAddress() );
 +                    }
 +
 +                    disconnect( bungee.getTranslation( "antibot_ratelimit", addressData.getConnectionsSecond() ) );
@@ -1572,7 +1592,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotAccountsLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] has too many accounts", ch.getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] has too many accounts", ch.getRemoteAddress() );
 +            }
 +
 +            disconnect( bungee.getTranslation( "antibot_accounts", addressData.getNicknames().size() ) );
@@ -1583,7 +1603,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotNicknameLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] has a blacklisted nickname (" + nickname + ")", ch.getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] has a blacklisted nickname (" + nickname + ")", ch.getRemoteAddress() );
 +            }
 +
 +            disconnect( bungee.getTranslation( "antibot_nickname", loginRequest.getData() ) );
@@ -1594,7 +1614,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotReconnectLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] has to reconnect to join", ch.getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] has to reconnect to join", ch.getRemoteAddress() );
 +            }
 +
 +            disconnect( bungee.getTranslation( "antibot_reconnect", FlameCord.getInstance().getFlameCordConfiguration().getAntibotReconnectAttempts() - addressData.getTotalConnections() ) );
@@ -1605,7 +1625,7 @@ index c00ab4b6a..bbf9c3dba 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotCountryLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] has his country blocked from the server", ch.getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] has his country blocked from the server", ch.getRemoteAddress() );
 +            }
 +
 +            disconnect( bungee.getTranslation( "antibot_country", addressData.getCountry() ) );
@@ -1617,7 +1637,7 @@ index c00ab4b6a..bbf9c3dba 100644
          // We can just check by UUID here as names are based on UUID
          if ( !isOnlineMode() && bungee.getPlayer( getUniqueId() ) != null )
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
-index 66332af4e..289cce0c3 100644
+index 66332af4e..667364aea 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 @@ -4,11 +4,16 @@ import com.google.common.base.Preconditions;
@@ -1648,7 +1668,7 @@ index 66332af4e..289cce0c3 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotFastChatLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] is chatting too fast", con.getCh().getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] is chatting too fast", con.getCh().getRemoteAddress() );
 +            }
 +
 +            con.disconnect( bungee.getTranslation( "antibot_fastchat" ) );
@@ -1659,7 +1679,7 @@ index 66332af4e..289cce0c3 100644
 +        {
 +            if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotPasswordLog() )
 +            {
-+                bungee.getLogger().log( Level.INFO, "[FlameCord] [{0}] has entered a repeated password", con.getCh().getRemoteAddress() );
++                FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] has entered a repeated password", con.getCh().getRemoteAddress() );
 +            }
 +
 +            con.disconnect( bungee.getTranslation( "antibot_password", checkManager.getPasswordCheck().getRepeatCount() ) );
@@ -1703,7 +1723,7 @@ index e2911d5e4..1e3608fa4 100644
          {
              callback.done( null, cause );
 diff --git a/proxy/src/main/java/net/md_5/bungee/netty/HandlerBoss.java b/proxy/src/main/java/net/md_5/bungee/netty/HandlerBoss.java
-index 14e3004fc..abca28bd7 100644
+index 14e3004fc..3fce5ff11 100644
 --- a/proxy/src/main/java/net/md_5/bungee/netty/HandlerBoss.java
 +++ b/proxy/src/main/java/net/md_5/bungee/netty/HandlerBoss.java
 @@ -12,6 +12,8 @@ import io.netty.handler.timeout.ReadTimeoutException;
@@ -1724,7 +1744,7 @@ index 14e3004fc..abca28bd7 100644
 +        if (FlameCord.getInstance().getFlameCordConfiguration().getAntibotFirewalledExceptions().contains(reason))
 +        {
 +            FlameCord.getInstance().getAddressDataManager().getAddressData(ctx.channel().remoteAddress()).firewall(reason);
-+            BungeeCord.getInstance().getLogger().log( Level.INFO, "[FlameCord] [{0}] was firewalled because of " + reason, ctx.channel().remoteAddress() );
++            FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] was firewalled because of " + reason, ctx.channel().remoteAddress() );
 +        }
 +        // Flamecord end - Antibot System
 +
@@ -1732,7 +1752,7 @@ index 14e3004fc..abca28bd7 100644
          {
              boolean logExceptions = !( handler instanceof PingHandler );
 diff --git a/proxy/src/main/java/net/md_5/bungee/netty/PipelineUtils.java b/proxy/src/main/java/net/md_5/bungee/netty/PipelineUtils.java
-index ffea15992..4bb8eb460 100644
+index ffea15992..f04fdd9ce 100644
 --- a/proxy/src/main/java/net/md_5/bungee/netty/PipelineUtils.java
 +++ b/proxy/src/main/java/net/md_5/bungee/netty/PipelineUtils.java
 @@ -59,6 +59,20 @@ public class PipelineUtils
@@ -1745,7 +1765,7 @@ index ffea15992..4bb8eb460 100644
 +            {
 +                if ( FlameCord.getInstance().getFlameCordConfiguration().isAntibotFirewallLog() )
 +                {
-+                    BungeeCord.getInstance().getLogger().log( Level.INFO, "[FlameCord] [{0}] is firewalled from the server. ({1})", new Object[]{ ch.remoteAddress(), firewallReason } );
++                    FlameCord.getInstance().getLoggerWrapper().log( Level.INFO, "[FlameCord] [{0}] is firewalled from the server. ({1})", new Object[]{ ch.remoteAddress(), firewallReason } );
 +                }
 +
 +                ch.close();
