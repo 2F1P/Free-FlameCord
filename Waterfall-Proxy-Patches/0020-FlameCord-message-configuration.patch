@@ -1,11 +1,11 @@
-From dae4aa8593ae097fcc2961539dd2fc7787e8d63e Mon Sep 17 00:00:00 2001
+From fbf8efb44cceaa714da0ca83a04695ad4ba1c4e3 Mon Sep 17 00:00:00 2001
 From: linsaftw <25271111+linsaftw@users.noreply.github.com>
 Date: Sat, 1 May 2021 13:40:39 -0300
 Subject: [PATCH] FlameCord message configuration
 
 
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/FlameCord.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/FlameCord.java
-index ac37eaa3e..c78ab3a7c 100644
+index fb3d8ca2e..676ba95b9 100644
 --- a/flamecord/src/main/java/dev/_2lstudios/flamecord/FlameCord.java
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/FlameCord.java
 @@ -4,6 +4,7 @@ import java.util.Collection;
@@ -16,28 +16,29 @@ index ac37eaa3e..c78ab3a7c 100644
  import dev._2lstudios.flamecord.configuration.ModulesConfiguration;
  import lombok.Getter;
  import net.md_5.bungee.config.ConfigurationProvider;
-@@ -25,12 +26,15 @@ public class FlameCord {
-     private FlameCordConfiguration flameCordConfiguration;
+@@ -27,6 +28,8 @@ public class FlameCord {
+     // FlameCord - Module System
      @Getter
      private ModulesConfiguration modulesConfiguration;
 +    @Getter
 +    private MessagesConfiguration messagesConfiguration;
  
-     private void reload(final Logger logger) {
+     public void reload(final Logger logger, final Collection<String> whitelistedAddresses) {
          final ConfigurationProvider configurationProvider = ConfigurationProvider.getProvider(YamlConfiguration.class);
- 
-         this.flameCordConfiguration = new FlameCordConfiguration(configurationProvider);
+@@ -35,5 +38,6 @@ public class FlameCord {
+         
+         // FlameCord - Module System
          this.modulesConfiguration = new ModulesConfiguration(configurationProvider);
 +        this.messagesConfiguration = new MessagesConfiguration(logger, configurationProvider);
      }
- 
-     private FlameCord(final Logger logger, final Collection<String> whitelistedAddresses) {
+ }
+\ No newline at end of file
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/MessagesConfiguration.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/MessagesConfiguration.java
 new file mode 100644
-index 000000000..4f306660e
+index 000000000..21381bb45
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/MessagesConfiguration.java
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,115 @@
 +package dev._2lstudios.flamecord.configuration;
 +
 +import java.io.File;
@@ -69,6 +70,13 @@ index 000000000..4f306660e
 +			} else {
 +				configuration = configurationProvider.load(configurationFile);
 +			}
++
++			// FlameCord
++			setIfUnexistant("flamecord_reload", "&aAll files had been successfully reloaded!", configuration);
++			setIfUnexistant("flamecord_help",
++					"&aFlameCord&b {0}&a by&b LinsaFTW\n&e /flamecord reload&7 >&b Reloads FlameCord files!\n&e /flamecord firewall <add/remove> <ip>&7 >&b Firewall certain ips!\n&e /bplugins&7 >&b Show the plugin list!\n&e /bip <player>&7 >&b Show the ip and info of a player!\n&e /flamecord help&7 >&b Shows this message!",
++					configuration);
++			setIfUnexistant("flamecord_nopermission", "&cYou don't have permission to do this!", configuration);
 +
 +			// BungeeCord
 +			setIfUnexistant("alert", "&8[&4Alert&8]&r ", configuration);
@@ -109,6 +117,7 @@ index 000000000..4f306660e
 +					"&cAn error occurred while parsing your message. (Hover for details)", configuration);
 +			setIfUnexistant("error_occurred_console", "&cAn error occurred while parsing your message: {0}",
 +					configuration);
++			setIfUnexistant("server_command_hover_players", "{0} players", configuration);
 +			setIfUnexistant("click_to_connect", "Click to connect to the server", configuration);
 +			setIfUnexistant("username_needed", "&cPlease follow this command by a user name.", configuration);
 +			setIfUnexistant("user_not_online", "&cThat user is not online.", configuration);
@@ -121,13 +130,6 @@ index 000000000..4f306660e
 +			setIfUnexistant("command_perms_permission", "&9- {0}", configuration);
 +			setIfUnexistant("command_ip", "&9IP of {0} is {1}", configuration);
 +			setIfUnexistant("illegal_chat_characters", "&cIllegal characters in chat ({0})", configuration);
-+
-+			// FlameCord
-+			setIfUnexistant("flamecord_reload", "&aAll files had been successfully reloaded!", configuration);
-+			setIfUnexistant("flamecord_help",
-+					"&aFlameCord&b {0}&a by&b LinsaFTW&a &&b Sammwy&r\n&e /flamecord reload&7 >&b Reloads FlameCord files!\n&e /flamecord help&7 >&b Shows this message!",
-+					configuration);
-+			setIfUnexistant("flamecord_nopermission", "&cYou don't have permission to do this!", configuration);
 +
 +			configurationProvider.save(configuration, configurationFile);
 +
@@ -153,8 +155,23 @@ index 000000000..4f306660e
 +	}
 +}
 \ No newline at end of file
+diff --git a/module/cmd-server/src/main/java/net/md_5/bungee/module/cmd/server/CommandServer.java b/module/cmd-server/src/main/java/net/md_5/bungee/module/cmd/server/CommandServer.java
+index 698b420f4..e4ad7e389 100644
+--- a/module/cmd-server/src/main/java/net/md_5/bungee/module/cmd/server/CommandServer.java
++++ b/module/cmd-server/src/main/java/net/md_5/bungee/module/cmd/server/CommandServer.java
+@@ -50,7 +50,9 @@ public class CommandServer extends Command implements TabExecutor
+                     int count = server.getPlayers().size();
+                     serverTextComponent.setHoverEvent( new HoverEvent(
+                             HoverEvent.Action.SHOW_TEXT,
+-                            new ComponentBuilder( count + ( count == 1 ? " player" : " players" ) + "\n" ).appendLegacy( ProxyServer.getInstance().getTranslation( "click_to_connect" ) ).create() )
++                            // FlameCord - FlameCord messages configuration
++                            // Make player count customizable
++                            new ComponentBuilder( ProxyServer.getInstance().getTranslation( "server_command_hover_players", count ) + "\n" ).appendLegacy( ProxyServer.getInstance().getTranslation( "click_to_connect" ) ).create() )
+                     );
+                     serverTextComponent.setClickEvent( new ClickEvent( ClickEvent.Action.RUN_COMMAND, "/server " + server.getName() ) );
+                     serverList.append( serverTextComponent );
 diff --git a/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java b/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
-index 91d60bfb3..cc76325b2 100644
+index 021b38d43..fb81adee0 100644
 --- a/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
 +++ b/proxy/src/main/java/dev/_2lstudios/flamecord/commands/FlameCordCommand.java
 @@ -4,6 +4,7 @@ import java.util.Collection;
@@ -175,7 +192,7 @@ index 91d60bfb3..cc76325b2 100644
              if (args.length > 0) {
 @@ -38,21 +40,22 @@ private final BungeeCord bungeeCord;
  
-                         FlameCord.reload(bungeeCord.getLogger(), whitelistedAddresses);
+                         FlameCord.initialize(bungeeCord.getLogger(), whitelistedAddresses);
                          sender.sendMessage(TextComponent
 -                                .fromLegacyText("flamecord_reload"));
 +                                .fromLegacyText(messagesConfiguration.getTranslation("flamecord_reload")));
@@ -201,10 +218,10 @@ index 91d60bfb3..cc76325b2 100644
      }
  }
 diff --git a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-index 88ac66bab..501aacfa0 100644
+index 0eb9ae146..857b0b622 100644
 --- a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
 +++ b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-@@ -626,8 +626,8 @@ public class BungeeCord extends ProxyServer
+@@ -620,8 +620,8 @@ public class BungeeCord extends ProxyServer
      @Override
      public String getTranslation(String name, Object... args)
      {
