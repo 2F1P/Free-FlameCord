@@ -1,11 +1,11 @@
-From acfaf3a65cf5cefe3b043c9f33c75e8238f6ad41 Mon Sep 17 00:00:00 2001
+From 12e8cf7f28a7ceb0533ffc1c51a42e203f374a4f Mon Sep 17 00:00:00 2001
 From: LinsaFTW <25271111+linsaftw@users.noreply.github.com>
 Date: Thu, 7 Oct 2021 21:37:24 -0300
 Subject: [PATCH] Custom motd system
 
 
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameConfig.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameConfig.java
-index 5589ce1b7..1e928197c 100644
+index 5589ce1b..1e928197 100644
 --- a/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameConfig.java
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameConfig.java
 @@ -15,6 +15,10 @@ public class FlameConfig {
@@ -20,7 +20,7 @@ index 5589ce1b7..1e928197c 100644
          return (boolean) setIfUnexistant(arg1, (Object) arg2, configuration);
      }
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameCordConfiguration.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameCordConfiguration.java
-index edecc1e55..0ceddd4eb 100644
+index edecc1e5..c81dc002 100644
 --- a/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameCordConfiguration.java
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/configuration/FlameCordConfiguration.java
 @@ -3,15 +3,88 @@ package dev._2lstudios.flamecord.configuration;
@@ -94,7 +94,7 @@ index edecc1e55..0ceddd4eb 100644
 +    @Getter
 +    private boolean protocolEnabled = false;
 +    @Getter
-+    private String protocolName = "FlameCord 1.7-1.19";
++    private String protocolName = "&c&lMaintenance";
 +
 +    @Getter
 +    private boolean maxPlayersEnabled = false;
@@ -123,7 +123,7 @@ index edecc1e55..0ceddd4eb 100644
 +            this.hexSamples = ColorUtil.hexColor(new ArrayList<>(setIfUnexistant("custom-motd.sample.samples", this.samples, configuration)), 735);
 +            this.samples = ColorUtil.hexColor(new ArrayList<>(setIfUnexistant("custom-motd.sample.samples", this.samples, configuration)), 734);
 +            this.protocolEnabled = setIfUnexistant("custom-motd.protocol.enabled", this.protocolEnabled, configuration);
-+            this.protocolName = setIfUnexistant("custom-motd.protocol.name", this.protocolName, configuration);
++            this.protocolName = ColorUtil.hexColor(setIfUnexistant("custom-motd.protocol.name", this.protocolName, configuration), 735);
 +            this.maxPlayersEnabled = setIfUnexistant("custom-motd.maxplayers.enabled", this.maxPlayersEnabled, configuration);
 +            this.maxPlayersAmount = setIfUnexistant("custom-motd.maxplayers.amount", this.maxPlayersAmount, configuration);
 +            this.maxPlayersOneMore = setIfUnexistant("custom-motd.maxplayers.justonemore", this.maxPlayersOneMore, configuration);
@@ -136,7 +136,7 @@ index edecc1e55..0ceddd4eb 100644
              this.loggerDump = setIfUnexistant("logger.dump", this.loggerDump, configuration);
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/ColorUtil.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/ColorUtil.java
 new file mode 100644
-index 000000000..9587bccda
+index 00000000..9587bccd
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/ColorUtil.java
 @@ -0,0 +1,48 @@
@@ -190,7 +190,7 @@ index 000000000..9587bccda
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/IridiumColorAPI.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/IridiumColorAPI.java
 new file mode 100644
-index 000000000..6c386e16f
+index 00000000..6c386e16
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/IridiumColorAPI.java
 @@ -0,0 +1,275 @@
@@ -471,7 +471,7 @@ index 000000000..6c386e16f
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/GradientPattern.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/GradientPattern.java
 new file mode 100644
-index 000000000..c1f05cd0a
+index 00000000..c1f05cd0
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/GradientPattern.java
 @@ -0,0 +1,33 @@
@@ -510,7 +510,7 @@ index 000000000..c1f05cd0a
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/Pattern.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/Pattern.java
 new file mode 100644
-index 000000000..5457ead64
+index 00000000..5457ead6
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/Pattern.java
 @@ -0,0 +1,17 @@
@@ -533,7 +533,7 @@ index 000000000..5457ead64
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/RainbowPattern.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/RainbowPattern.java
 new file mode 100644
-index 000000000..792e9f987
+index 00000000..792e9f98
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/RainbowPattern.java
 @@ -0,0 +1,28 @@
@@ -567,7 +567,7 @@ index 000000000..792e9f987
 +}
 diff --git a/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/SolidPattern.java b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/SolidPattern.java
 new file mode 100644
-index 000000000..0b039c797
+index 00000000..0b039c79
 --- /dev/null
 +++ b/flamecord/src/main/java/dev/_2lstudios/flamecord/utils/iridiumcolorapi/patterns/SolidPattern.java
 @@ -0,0 +1,29 @@
@@ -601,7 +601,7 @@ index 000000000..0b039c797
 +
 +}
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
-index abed08d4f..031c007db 100644
+index abed08d4..17a6d422 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 @@ -23,6 +23,8 @@ import javax.crypto.spec.SecretKeySpec;
@@ -621,12 +621,13 @@ index abed08d4f..031c007db 100644
          final int protocol = ( ProtocolConstants.SUPPORTED_VERSION_IDS.contains( handshake.getProtocolVersion() ) ) ? handshake.getProtocolVersion() : bungee.getProtocolVersion();
  
          Callback<ServerPing> pingBack = new Callback<ServerPing>()
-@@ -338,7 +339,52 @@ public class InitialHandler extends PacketHandler implements PendingConnection
+@@ -338,7 +339,53 @@ public class InitialHandler extends PacketHandler implements PendingConnection
              ( (BungeeServerInfo) forced ).ping( pingBack, handshake.getProtocolVersion() );
          } else
          {
 -            pingBack.done( getPingInfo( motd, protocol ), null );
-+            // FlameCord - Custom MOTD
++            // FlameCord - Custom motd system
++            // Get the configuration
 +            final FlameCordConfiguration config = FlameCord.getInstance().getFlameCordConfiguration();
 +
 +            String motd;
@@ -669,7 +670,7 @@ index abed08d4f..031c007db 100644
 +            }
 +
 +            pingBack.done( new ServerPing(
-+                    new ServerPing.Protocol( protocolName, protocol ),
++                    new ServerPing.Protocol( protocolName, config.isProtocolEnabled() ? -1 : protocol ),
 +                    new ServerPing.Players( maxPlayers, onlinePlayers, sample ),
 +                    motd, BungeeCord.getInstance().config.getFaviconObject() ), null );
          }
