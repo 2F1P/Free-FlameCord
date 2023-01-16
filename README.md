@@ -2,7 +2,7 @@
 
 FlameCord is a Waterfall fork or modification that adds antibot features, exploit prevention systems, performance improvements, removal of unused features, library updates and application layer ddos mitigation. Made by @linsaftw compiled by @FluffyFoxUwU or @FuchsFuchs1
 
-#Go buy it! im too lazy to update this!
+# Go buy it! im too lazy to update this!
 
 # Support the Original Creator by purchasing it from MCMarket
 
